@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 # Constants
 BASE_API_URL = 'https://app.pendo.io/api/v1/report/:reportId/results.csv'
-API_KEY = '744725bc-44c6-40f1-48d0-3b91f1362f12.us'
+API_KEY = 'my_api_key'
 SAVE_PATH = os.path.abspath('/Users/benrasmus/Dropbox/Python_Practice') #'C:\Users\B. Gary\Dropbox\Python_Practice') --- replace this
 DB_HOST = 'placeholder' # BE SURE TO REPLACE THESE PLACEHOLDERS
 DB_PORT = 'placeholder' # BE SURE TO REPLACE THESE PLACEHOLDERS
