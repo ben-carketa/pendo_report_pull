@@ -1,25 +1,19 @@
 import csv
 import requests
 import os
-import platform
+import psycopg2
 from datetime import datetime, timedelta
 
 # Constants
 BASE_API_URL = 'https://app.pendo.io/api/v1/report/:reportId/results.csv'
 API_KEY = 'my_api_key'
-
-# Detect the operating system
-system = platform.system()
-
-# Set SAVE_PATH based on the operating system
-if system == 'Windows':
-    SAVE_PATH = os.path.abspath(r'C:\Users\B. Gary\Dropbox\Python_Practice')
-elif system == 'Darwin': #'Darwin' is the platform name for macOS
-    SAVE_PATH = os.path.abspath('/Users/benrasmus/Dropbox/Python_Practice)
-else:
-    # Handle other platforms here, if needed
-    SAVE_PATH = os.path.abspath('.')
-
+SAVE_PATH = os.path.abspath('/Users/benrasmus/Dropbox/Python_Practice') #'C:\Users\B. Gary\Dropbox\Python_Practice') --- replace this
+DB_HOST = 'placeholder' # BE SURE TO REPLACE THESE PLACEHOLDERS
+DB_PORT = 'placeholder' # BE SURE TO REPLACE THESE PLACEHOLDERS
+DB_NAME = 'placeholder' # BE SURE TO REPLACE THESE PLACEHOLDERS
+DB_USER = 'placeholder' # BE SURE TO REPLACE THESE PLACEHOLDERS
+DB_PASSWORD = 'placeholder' # BE SURE TO REPLACE THESE PLACEHOLDERS
+TABLE_NAME = 'placeholder' # BE SURE TO REPLACE THESE PLACEHOLDERS
 
 def api_request(url, headers):
     response = requests.get(url, headers=headers)
@@ -29,8 +23,13 @@ def save_csv(csv_data, file_path):
     with open(file_path, 'w', newline="") as csv_file:
         csv_file.write(csv_data)
 
+def transform_headers(headers):
+    # Replace headers with the desired format
+    new_headers = [header.lower().replace(' ', '_') for header in headers]
+    return new_headers
+
 def main():
-    report_id = 'nlDuYQ6TkVp0UAr_ZZw2vSk0ybU' #Report ID pulled from Pendo
+    report_id = 'nlDuYQ6TkVp0UAr_ZZw2vSk0ybU'
 
     headers = {
         'content-type': 'text/csv',
@@ -42,27 +41,70 @@ def main():
     response = api_request(api_url, headers)
 
     if response.status_code == 200:
-        csv_data = response.content.decode('utf-8')
+        csv_data = response.content.decod('utf-8')
 
-        #Calc timestamp of prev day
+        # Calculate timestamp of previous day
         now = datetime.now()
         previous_day = now - timedelta(days=1)
-        save_date = previous_day.strftime('%m.%d.%y')
+        save_date = previous_day.strftime('%m,%d,%y')
         file_name = f'{save_date}_report.csv'
-     
-        #Modify CSV data to include the timestamp
-        formatted_date = previous_day.strftime('%m-%d-%y')
+
+        # Modify CSV data to include the timestamp
+        formatted_date = ('%m-%d-%y')
         lines = csv_data.strip().split('\n')
-        new_lines = ['Timestamp,' + lines[0]]  # Add header to the first line
+        new_lines = ['timestamp,' + lines[0]] # Modify header
         for line in lines[1:]:
             new_lines.append(f'{formatted_date},{line}')
-
+        
         modified_csv_data = '\n'.join(new_lines)
-
 
         file_path = os.path.join(SAVE_PATH, file_name)
         save_csv(modified_csv_data, file_path)
         print('CSV data saved to', file_name)
+
+        # Transform headers
+        transformed_headers = transform_headers(lines[0].split(','))
+
+        # Instert data into PosgreSQL database
+        try:
+            connection = psycopg2.connect(
+                host=DB_HOST,
+                database=DB_NAME,
+                user=DB_NAME,
+                password=DB_PASSWORD,
+                port=DB_PORT
+            )
+            cursor = connection.cursor()
+
+            with open(file_path, 'r') as csv_file:
+                csv_reader = csv.DictReader(csv_file, fieldnames=transformed_headers)
+                next(csv_reader) # Skip the header row
+
+                for row in csv_reader:
+                    query = "INSERT INTO your_table_name VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+                    values = (
+                        row['timestamp'],
+                        row['visitor_id'],
+                        row['account_id'],
+                        row['name'],
+                        row['events'],
+                        row['days_active'],
+                        row['first_visit'],
+                        row['last_visit']
+                    )
+                    cursor.execute(query, values)
+
+                connection.commit()
+                print('Data inserted into PostgreSQL database')
+
+        except (Exception, psycopg2.Error) as error:
+            print('Error:', error)
+        
+        finally:
+            if connection:
+                cursor.close()
+                connection.close()
+
     else:
         print('Error:', response.text)
 
